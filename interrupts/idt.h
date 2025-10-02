@@ -20,7 +20,7 @@ struct __attribute__((packed)) IDTR {
 };
 
 void set_idt_entry(int n, void (*handler)(), uint16_t sel, uint8_t type_attr);
-void init_idt_and_keyboard(void);
+void init_idt_and_keyboard();
 void keyboard_handler_c();
 
 extern volatile uint64_t ticks;

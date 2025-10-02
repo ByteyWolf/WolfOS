@@ -45,13 +45,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     print("Enabling interrupts...\n");
     asm volatile("sti");
     print("\xFAInterrupts enabled\xF7\n");
-
-    struct int86_regs regs = {0};
-    regs.ax=0;
-    print("calling\n");
-    int86(0x16, &regs);
-    print("back\n");
-
     
     //register_driver(VESA_VBE_driver_so, VESA_VBE_driver_so_len);
     struct device_driver* vga_generic = register_driver(VGA_driver_so, VGA_driver_so_len);
@@ -61,6 +54,14 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     printf("\xFEInitializing devices...\xF7\n");
 
     init_devices();
+
+    // Test our brand new int86
+    struct int86regs regs = {0};
+    regs.eax = 0x0;
+    int86(0x16, &regs);
+    char ascii = regs.eax & 0xFF;
+    char scancode = (regs.eax >> 8) & 0xFF;
+    printf("Key pressed: ASCII=%c, Scancode=%x\n", ascii, scancode);
     
     while (1) {}
 }

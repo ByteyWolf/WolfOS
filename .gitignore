@@ -5,3 +5,5 @@ iso
 *.so
 *.elf
 *.iso
+qemu
+*.log

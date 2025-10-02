@@ -5,20 +5,13 @@
 
 #include <stdint.h>
 
-struct int86_regs {
-    uint16_t ax;
-    uint16_t bx;
-    uint16_t cx;
-    uint16_t dx;
-    uint16_t si;
-    uint16_t di;
-    uint16_t bp;
-    uint16_t ds;
-    uint16_t es;
+struct int86regs {
+    uint32_t edi, esi, ebp, esp;
+    uint32_t ebx, edx, ecx, eax;
     uint16_t flags;
-} __attribute__((packed));
+    uint16_t es, ds, fs, gs;
+} __attribute__ ((packed));
 
-
-void int86(int inum, struct int86_regs *regs);
+extern void int86(int inum, struct int86regs *regs);
 
 #endif
