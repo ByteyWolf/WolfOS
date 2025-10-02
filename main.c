@@ -1,10 +1,11 @@
 #include "util/earlyutil.h"
 #include "util/strings.h"
 #include "util/gdt.h"
-#include "util/interrupts/idt.h"
 #include "util/multiboot.h"
 #include "util/cpuid.h"
 #include "util/int86.h"
+
+#include "interrupts/idt.h"
 
 #include "console/console.h"
 
@@ -30,7 +31,6 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     BIOSclear();
     load_gdt();
     load_cpuid();
-    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) {enable_sse();}
 
     init_memory_manager(mbd, &_kernel_start, &_kernel_end); // We can now use kmalloc(), kamalloc() and free()!
     struct console* console = init_console(CONSOLE_FLAG_TEXT);
@@ -56,6 +56,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     init_devices();
 
     // Test our brand new int86
+    printf("testing int86...\n");
     struct int86regs regs = {0};
     regs.eax = 0x0;
     int86(0x16, &regs);

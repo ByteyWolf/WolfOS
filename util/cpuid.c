@@ -55,6 +55,7 @@ void load_cpuid() {
     );
     cpu_capabilities = edx;
     cpu_capabilities_extended = ecx;
+    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) {enable_sse();}
 }
 
 char* get_cpu_vendor() {

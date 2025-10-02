@@ -19,7 +19,11 @@ uint32_t strlen(const char *s) {
     return (uint32_t)(p - s);
 }
 
-void *sse_memset(void *dst, int value, uint32_t n) {
+
+// all the fun stuff
+
+// SSE-accelerated
+void *memset_sse(void *dst, int value, uint32_t n) {
     uint8_t *ptr = (uint8_t *)dst;
     uint32_t i;
 
@@ -58,11 +62,10 @@ void *sse_memset(void *dst, int value, uint32_t n) {
     return dst;
 }
 
-void *sse_memcpy(void *dest, const void *src, unsigned int n) {
+void *memcpy_sse(void *dest, const void *src, unsigned int n) {
     unsigned char *d = dest;
     const unsigned char *s = src;
 
-    // Align destination to 16 bytes if possible
     while (((uintptr_t)d & 0xF) && n) {
         *d++ = *s++;
         n--;
@@ -85,14 +88,13 @@ void *sse_memcpy(void *dest, const void *src, unsigned int n) {
         : "xmm0", "memory"
     );
 
-    // Copy leftover bytes
     for (unsigned int i = 0; i < leftover; i++)
         *d++ = *s++;
 
     return dest;
 }
 
-void *sse_memmove(void *dest, const void *src, unsigned int n) {
+void *memmove_sse(void *dest, const void *src, unsigned int n) {
     unsigned char *d = dest;
     const unsigned char *s = src;
 
@@ -155,31 +157,75 @@ void *sse_memmove(void *dest, const void *src, unsigned int n) {
     return dest;
 }
 
+// STOSB-accelerated
+void *memset_fast(void *dst, int val, uint32_t n) {
+    uint8_t *d = (uint8_t *)dst;
+
+    if (n == 0) return dst;
+
+    asm volatile(
+        "rep stosb"
+        : "+D"(d), "+c"(n)
+        : "a"(val)
+        : "memory"
+    );
+
+    return dst;
+}
+void *memcpy_fast(void *dst, const void *src, uint32_t n) {
+    uint8_t *d = (uint8_t *)dst;
+    const uint8_t *s = (const uint8_t *)src;
+
+    if (n == 0) return dst;
+
+    asm volatile(
+        "rep movsb"
+        : "+D"(d), "+S"(s), "+c"(n)
+        :
+        : "memory"
+    );
+
+    return dst;
+}
+void *memmove_fast(void *dst, const void *src, uint32_t n) {
+    uint8_t *d = (uint8_t *)dst;
+    const uint8_t *s = (const uint8_t *)src;
+
+    if (d == s || n == 0) return dst;
+
+    if (d < s) {
+        asm volatile(
+            "rep movsb"
+            : "+D"(d), "+S"(s), "+c"(n)
+            :
+            : "memory"
+        );
+    } else {
+        d += n;
+        s += n;
+        asm volatile(
+            "std\n\t"
+            "rep movsb\n\t"
+            "cld"
+            : "+D"(d), "+S"(s), "+c"(n)
+            :
+            : "memory"
+        );
+    }
+
+    return dst;
+}
+
 
 void *memcpy(void *dst, const void *src, uint32_t n){
-    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return sse_memcpy(dst, src, n);
-    unsigned char *d=(unsigned char*)dst;
-    const unsigned char *s=(const unsigned char*)src;
-    while(n--) *d++=*s++;
-    return dst;
+    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return memcpy_sse(dst, src, n);
+    return memcpy_fast(dst, src, n);
 }
 void *memset(void *dst,int value,uint32_t n){
-    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return sse_memset(dst, value, n);
-    unsigned char *d=(unsigned char*)dst;
-    unsigned char v=(unsigned char)value;
-    while(n--) *d++=v;
-    return dst;
+    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return memset_sse(dst, value, n);
+    return memset_fast(dst, value, n);
 }
 void *memmove(void *dst, const void *src, uint32_t n) {
-    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return sse_memmove(dst, src, n);
-    unsigned char *d = (unsigned char *)dst;
-    const unsigned char *s = (const unsigned char *)src;
-    if (d == s || n == 0) return dst;
-    if (d < s) {
-        while (n--) *d++ = *s++;
-    } else {
-        d += n; s += n;
-        while (n--) *--d = *--s;
-    }
-    return dst;
+    if (cpu_has_feature(CPUID_FEAT_EDX_SSE)) return memmove_sse(dst, src, n);
+    return memmove_fast(dst, src, n);
 }
