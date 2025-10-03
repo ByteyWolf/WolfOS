@@ -1,6 +1,6 @@
 # drivers/Makefile
 # List drivers here (space-separated)
-DRIVERS ?= USB_EHCI VGA
+DRIVERS ?= USB_EHCI VGA BootloaderFB
 
 # Tools & flags (tweak to match your build)
 CC       := gcc

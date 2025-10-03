@@ -2,6 +2,7 @@
 #define ELF_H
 
 #include <stdint.h>
+#include "../util/multiboot.h"
 
 enum {
     R_386_NONE     = 0,
@@ -84,5 +85,6 @@ typedef int (*driver_bind_pci)(uint8_t bus, uint8_t slot, uint8_t func);
 
 struct driver_init_passport* load_driver_bin(char* addr, uint32_t size);
 void* get_elf_symbol(struct driver_init_passport* passport, char* symbol_name);
+void init_progman(multiboot_info_t* mbh);
 
 #endif

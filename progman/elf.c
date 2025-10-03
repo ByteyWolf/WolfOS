@@ -5,6 +5,7 @@
 #include "../util/strings.h"
 #include "../util/int86.h"
 #include "../drivers/pci.h"
+#include "../util/multiboot.h"
 
 #include "../mm/kalloc.h"
 
@@ -20,7 +21,10 @@ struct e_section* get_section_data(struct elf_file* binary, uint32_t index) {
     return (struct e_section*)((char*)binary + binary->e_shoff + index * binary->e_shentsize);
 }
 
-extern char _lowbuf;
+multiboot_info_t* multiboothdr;
+multiboot_info_t* get_multiboot() {
+    return multiboothdr;
+}
 
 void* resolve_symbol(char* symname) {
     if (strcmp(symname, "print")==0) return print;
@@ -43,7 +47,12 @@ void* resolve_symbol(char* symname) {
     if (strcmp(symname, "memset")==0) return memset;
     if (strcmp(symname, "memmove")==0) return memmove;
     if (strcmp(symname, "int86")==0) return int86;
+    if (strcmp(symname, "get_multiboot")==0) return get_multiboot; 
     return 0;
+}
+
+void init_progman(multiboot_info_t* mbh) {
+    multiboothdr = mbh;
 }
 
 uint32_t process_relocations(char* image, char* loadedimg, struct e_section* rel_dyn, struct e_section* dynsym_sec, struct e_section* dynstr_sec) {
@@ -64,13 +73,14 @@ uint32_t process_relocations(char* image, char* loadedimg, struct e_section* rel
         void* addr;
         if (sym->st_shndx != 0) {
             struct e_section* sec = get_section_data((struct elf_file*)image, sym->st_shndx);
-            addr = loadedimg + sec->sh_addr + (sym->st_value - sec->sh_addr);
+            addr = loadedimg + sym->st_value;
         } else {
             addr = resolve_symbol(name);
         }
         
         //printf("(%u/%u) Resolve: %s (type %u) -> %p\n", i+1, count, name, type, addr);
         if (!addr && type != R_386_RELATIVE) {
+            printf("FAIL Resolve Missing Addr: %s (type %u) -> %p\n", name, type, addr);
             return 1;
         }
 
@@ -80,6 +90,7 @@ uint32_t process_relocations(char* image, char* loadedimg, struct e_section* rel
             uint32_t addend = *(uint32_t*)(loadedimg + offset);
             *(uint32_t*)(loadedimg + offset) = (uint32_t)loadedimg + addend;
         } else {
+            printf("FAIL Resolve: %s (type %u) -> %p\n", name, type, addr);
             return 1;
         }
     }
@@ -124,6 +135,7 @@ struct driver_init_passport* load_driver_bin(char* addr, uint32_t size) {
     uint32_t minalloc = get_elf_min_csize(binary);
     char* loadloc = (char*)kamalloc(minalloc, 4098);
     FAIL_IF(loadloc == 0, "Insufficient system memory to load this driver");
+    memset(loadloc, 0, minalloc);
     //printf("\xFEPlacing ELF file at: %p (%u bytes)\n", loadloc, minalloc);
 
     char* shstrtab = (char*)binary + (get_section_data(binary, binary->e_shstrndx)->sh_offset);

@@ -16,12 +16,16 @@
 
 #include "drivers/USB_EHCI/driver_elf.h"
 #include "drivers/VGA/driver_elf.h"
+#include "drivers/BootloaderFB/driver_elf.h"
 #include "drivers/drivermodel.h"
 
 #include <stdint.h>
 
 extern char _kernel_start;
 extern char _kernel_end;
+
+const char* videodrv_base[] = {BootloaderFB_driver_so, VGA_driver_so};
+const uint8_t videodrv_base_c = 2;
 
 void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
@@ -45,24 +49,32 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
     print("Enabling interrupts...\n");
     asm volatile("sti");
     print("\xFAInterrupts enabled\xF7\n");
-    
-    //register_driver(VESA_VBE_driver_so, VESA_VBE_driver_so_len);
-    struct device_driver* vga_generic = register_driver(VGA_driver_so, VGA_driver_so_len);
-    kswitch_graphics_driver(vga_generic);
-    register_driver(USB_EHCI_driver_so, USB_EHCI_driver_so_len);
 
+    init_progman(mbd);
+    
+    register_driver(USB_EHCI_driver_so, USB_EHCI_driver_so_len);
+    for (uint8_t drvidx = 0; drvidx < videodrv_base_c; drvidx++) {
+        char* videodrv_so = videodrv_base[drvidx];
+        struct device_driver* videodrv = register_driver(videodrv_so, 0xFFFFFFFF);
+        printf("this drv result: %u\n", videodrv->init_result);
+        if (videodrv->init_result == 0) {
+            kswitch_graphics_driver(videodrv);
+            break;
+        }
+    }
+    
     printf("\xFEInitializing devices...\xF7\n");
 
     init_devices();
 
     // Test our brand new int86
-    printf("testing int86...\n");
+    /*printf("testing int86...\n");
     struct int86regs regs = {0};
     regs.eax = 0x0;
     int86(0x16, &regs);
     char ascii = regs.eax & 0xFF;
     char scancode = (regs.eax >> 8) & 0xFF;
-    printf("Key pressed: ASCII=%c, Scancode=%x\n", ascii, scancode);
+    printf("Key pressed: ASCII=%c, Scancode=%x\n", ascii, scancode);*/
     
     while (1) {}
 }
