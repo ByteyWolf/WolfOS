@@ -1,16 +1,12 @@
 ENTRY(_start)
 
-
-SECTIONS {
-    . = 0x7c00;
-
-	.boot2 : {
-		* (.lowtext);
-	}
-    . = 1M;
+SECTIONS
+{
     _kernel_start = .;
+    . = 1M;
+
     .text : {
-        *(.multiboot)
+        *(.multiboot2)
         *(.text*)
     }
 
@@ -26,7 +22,6 @@ SECTIONS {
         *(.bss*)
         *(COMMON)
     }
+
     _kernel_end = .;
 }
-
-

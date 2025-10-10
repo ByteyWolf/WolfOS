@@ -1,9 +1,9 @@
 #include "util/earlyutil.h"
 #include "util/strings.h"
 #include "util/gdt.h"
-#include "util/multiboot.h"
+#include "boot/bootscheme.h"
+#include "boot/multiboot2.h"
 #include "util/cpuid.h"
-#include "util/int86.h"
 
 #include "interrupts/idt.h"
 
@@ -27,12 +27,10 @@ extern char _kernel_end;
 const char* videodrv_base[] = {BootloaderFB_driver_so, VGA_driver_so};
 const uint8_t videodrv_base_c = 2;
 
-void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
-    if(magic != MULTIBOOT_BOOTLOADER_MAGIC) {
-        panic("invalid bootloader magic number!");
-    }
+void kernel_main(uint32_t magic, struct multiboot_info* mbd_e) {
+    boot_data_t* mbd = init_boot(magic, mbd_e);
 
-    BIOSclear();
+    //BIOSclear();
     load_gdt();
     load_cpuid();
 
@@ -67,14 +65,7 @@ void kernel_main(multiboot_info_t* mbd, unsigned int magic) {
 
     init_devices();
 
-    // Test our brand new int86
-    /*printf("testing int86...\n");
-    struct int86regs regs = {0};
-    regs.eax = 0x0;
-    int86(0x16, &regs);
-    char ascii = regs.eax & 0xFF;
-    char scancode = (regs.eax >> 8) & 0xFF;
-    printf("Key pressed: ASCII=%c, Scancode=%x\n", ascii, scancode);*/
+    printf("\xFB" "Boot source: %s\n", mbd->boot_source == BOOTSOURCE_BIOS ? "Legacy" : "UEFI");
     
     while (1) {}
 }

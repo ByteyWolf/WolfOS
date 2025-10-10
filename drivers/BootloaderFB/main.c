@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "definitions.h"
-#include "../../util/multiboot.h"
+#include "../../boot/bootscheme.h"
 
 extern void print(char* str);
 extern void print_ptr(const void *p);
@@ -11,9 +11,9 @@ extern void *memcpy(void *dst, const void *src, size_t n);
 extern void *memset(void *dst,int value,size_t n);
 extern void *memmove(void *dst, const void *src, uint32_t n);
 
-extern multiboot_info_t* get_multiboot();
+extern boot_data_t* get_boot_data();
 
-multiboot_info_t* multiboothdr;
+boot_data_t* multiboothdr;
 framebuffer_t fb;
 
 uint16_t __driver_class_priority=100;
@@ -23,7 +23,7 @@ char* __driver_author="ByteyWolf";
 
 int init() {
     print("ByteyWolf BootFramebuffer Driver version 1.0\n");
-    multiboothdr = get_multiboot();
+    multiboothdr = get_boot_data();
     
     print("FB resolution: ");
     print_uint32(multiboothdr->framebuffer_width,10,"0123456789");

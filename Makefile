@@ -12,7 +12,7 @@ ASFLAGS := -m32 -ffreestanding
 CFLAGS  := -m32 -ffreestanding -Wall -Wextra -nostdlib -fno-builtin -fno-stack-protector -funsigned-char -O0
 LDFLAGS := -T linker.ld -m elf_i386
 
-SOURCES  := start.S main.c util/earlyutil.c util/gdt.c interrupts/idt.c util/strings.c console/console.c mm/mem.c mm/kalloc.c progman/elf.c drivers/pci.c drivers/pci_names.c drivers/drivermodel.c util/cpuid.c util/int86.S
+SOURCES  := start.S main.c util/earlyutil.c util/gdt.c interrupts/idt.c util/strings.c console/console.c mm/mem.c mm/kalloc.c progman/elf.c drivers/pci.c drivers/pci_names.c drivers/drivermodel.c util/cpuid.c boot/bootscheme.c
 OBJECTS := $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 OBJECTS := $(OBJECTS:%.S=$(BUILD_DIR)/%.o)
 
@@ -58,9 +58,6 @@ run: all $(ISO)
 	-m 8M \
 	-machine q35 \
 	-vga std \
-	-drive id=disk,file=qemu/sata_disk.img,format=raw,if=none \
-	-device ahci,id=ahci \
-	-device ide-hd,drive=disk,bus=ahci.0 \
 	-debugcon stdio
 
 

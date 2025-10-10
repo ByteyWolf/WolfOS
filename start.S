@@ -1,31 +1,27 @@
-.section .multiboot
-.align 4
+.section .multiboot2
+.align 8
 
-/* Multiboot1 header */
-.equ MULTIBOOT_MAGIC, 0x1BADB002
-/* PAGE_ALIGN (1) | MEM_INFO (2) | VIDEO_MODE (4) */
-.equ MULTIBOOT_FLAGS, 0x00000007
-.equ MULTIBOOT_CHECKSUM, -(MULTIBOOT_MAGIC + MULTIBOOT_FLAGS) /* 32-bit wrap */
+multiboot_header_start:
+    .long 0xE85250D6
+    .long 0
+    .long multiboot_header_end - multiboot_header_start
+    .long -(0xE85250D6 + 0 + (multiboot_header_end - multiboot_header_start))
 
-.long MULTIBOOT_MAGIC
-.long MULTIBOOT_FLAGS
-.long MULTIBOOT_CHECKSUM
+    /* Framebuffer tag */
+    .align 8
+    .short 5
+    .short 0
+    .long 20
+    .long 1920
+    .long 1080
+    .long 32
 
-/* a.out kludge (5 longs) - safe to include/unused by most loaders */
-.long 0
-.long 0
-.long 0
-.long 0
-.long 0
-
-/* Video mode request fields (present if bit 2 set in flags) */
-/* mode_type: 0 = linear graphics, 1 = text. */
-/* width, height: pixels (0 == no preference) */
-/* depth: bits per pixel (e.g. 32) */
-.long 0          /* mode_type: 0 = linear framebuffer */
-.long 1920       /* preferred width - set to 0 if you want "no preference" */
-.long 1080       /* preferred height */
-.long 32         /* preferred bits-per-pixel */
+    /* End tag - required */
+    .align 8
+    .short 0
+    .short 0
+    .long 8
+multiboot_header_end:
 
 .section .text
 .global _start
@@ -33,8 +29,8 @@
 _start:
     cli
     mov $stack_top, %esp
-    push %eax
-    push %ebx
+    push %ebx                        /* Multiboot2 info structure pointer */
+    push %eax                        /* Multiboot2 magic value */
     call kernel_main
 
 .section .bss

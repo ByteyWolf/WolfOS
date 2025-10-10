@@ -6,7 +6,6 @@
 #include "../console/console.h"
 #include "intnames.h"
 #include "idtstubs.h"
-#include "../util/int86.h"
 
 static struct IDTEntry idt[256];
 volatile uint64_t ticks = 0;

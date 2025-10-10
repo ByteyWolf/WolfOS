@@ -3,9 +3,8 @@
 #include "../console/console.h"
 #include "../util/earlyutil.h"
 #include "../util/strings.h"
-#include "../util/int86.h"
 #include "../drivers/pci.h"
-#include "../util/multiboot.h"
+#include "../boot/bootscheme.h"
 
 #include "../mm/kalloc.h"
 
@@ -21,9 +20,9 @@ struct e_section* get_section_data(struct elf_file* binary, uint32_t index) {
     return (struct e_section*)((char*)binary + binary->e_shoff + index * binary->e_shentsize);
 }
 
-multiboot_info_t* multiboothdr;
-multiboot_info_t* get_multiboot() {
-    return multiboothdr;
+boot_data_t* boot_datahdr;
+boot_data_t* get_boot_data() {
+    return boot_datahdr;
 }
 
 void* resolve_symbol(char* symname) {
@@ -46,13 +45,12 @@ void* resolve_symbol(char* symname) {
     if (strcmp(symname, "memcpy")==0) return memcpy;
     if (strcmp(symname, "memset")==0) return memset;
     if (strcmp(symname, "memmove")==0) return memmove;
-    if (strcmp(symname, "int86")==0) return int86;
-    if (strcmp(symname, "get_multiboot")==0) return get_multiboot; 
+    if (strcmp(symname, "get_boot_data")==0) return get_boot_data; 
     return 0;
 }
 
-void init_progman(multiboot_info_t* mbh) {
-    multiboothdr = mbh;
+void init_progman(boot_data_t* mbh) {
+    boot_datahdr = mbh;
 }
 
 uint32_t process_relocations(char* image, char* loadedimg, struct e_section* rel_dyn, struct e_section* dynsym_sec, struct e_section* dynstr_sec) {

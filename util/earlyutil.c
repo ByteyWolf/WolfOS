@@ -4,6 +4,10 @@
 
 int cursor = 0;
 
+void qemuearlyprint(char* str) {
+    while (*str != 0) { outb(0xe9, *str); str++; }
+}
+
 volatile char* BIOS_FRAMEBUFFER = (char*)0xB8000;
 
 void BIOSclear() {
@@ -13,18 +17,8 @@ void BIOSclear() {
     cursor = 0;
 }
 
-void BIOSprint(const char* message, char format) {
-    int i = 0;
-    while (message[i] != '\0') {
-        if (message[i] == '\n') {
-            cursor += 80 - (cursor % 80);
-        } else {
-            BIOS_FRAMEBUFFER[cursor*2] = message[i];
-            BIOS_FRAMEBUFFER[cursor*2+1] = format;
-            cursor++;
-        }
-        i++;
-    }
+void BIOSprint(char* message, char format) {
+    qemuearlyprint(message);
 }
 
 uint8_t inb(uint16_t port) {
@@ -83,4 +77,3 @@ void wait(uint32_t ms) {
         __asm__("hlt");
     }
 }
-
