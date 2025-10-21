@@ -7,7 +7,7 @@ uint32_t __driver_classes_count = 1;
 uint16_t __driver_class_priority = 100;
 
 char* __driver_name = "EHCI Driver";
-char* __driver_author = "Silly Wolf";
+char* __driver_author = "Bytey Wolf";
 
 int init() {
     print("Silly Wolf EHCI Driver version 1.0\n");
@@ -18,21 +18,15 @@ int bind_device_pci(uint8_t bus, uint8_t slot, uint8_t func) {
     LOG("Discovered new device, binding!");
     uint8_t progif = pci_read_byte(bus, slot, func, 0x09);
     if (progif != 0x20) { FAIL("This isn't an EHCI controller!"); }
-    
+
     uint32_t bar = pci_read_dword(bus, slot, func, 0x10) & 0xFFFFFFF0;
     volatile uint8_t *mmio = (volatile uint8_t *)(uintptr_t)bar;
     volatile struct cap_regs *cap_base = (volatile struct cap_regs *)mmio;
 
-    /* compute op_base by adding bytes (caplength is in bytes) */
     volatile struct op_regs *op_base = (volatile struct op_regs *)(mmio + (uint32_t)cap_base->caplength);
-    /*LOG("Is this it? ");
-    print_ptr(cap_base);
-    putchar('\n');
-    print_ptr(op_base);
-    putchar('\n');*/
 
     uint16_t cmd = pci_read_word(bus, slot, func, 0x04);
-    cmd |= 0b110; // MEM space + Bus master
+    cmd |= 0b110;
     pci_write_word(bus, slot, func, 0x04, cmd);
 
     print("CAPLENGTH = ");
@@ -46,11 +40,8 @@ int bind_device_pci(uint8_t bus, uint8_t slot, uint8_t func) {
     print("HCCPARAMS = "); print_ptr((void*)hccparams); putchar('\n');
 
     LOG("Resetting controller.");
-    /*op_base->usbcmd &= ~(1 << 0);
-    delay(1000000000);
-    //while (!(op_base->usbsts & (1 << USBSTS_HALTED)));*/
 
-    op_base->usbcmd |= 2 | cmd & ~(USBCMD_ASE | USBCMD_PSE);  
+    op_base->usbcmd = (op_base->usbcmd & ~(USBCMD_ASE | USBCMD_PSE)) | 2;
     wait(50);
     LOG("Waiting for reset bit clear...");
     while((op_base->usbcmd) & 2);
@@ -58,34 +49,36 @@ int bind_device_pci(uint8_t bus, uint8_t slot, uint8_t func) {
     while (!(op_base->usbsts & (1 << USBSTS_HALTED)));
 
     LOG("Allocating data for controller.");
-    op_base->periodiclistbase = kamalloc(1024 * sizeof(uint32_t), 4096);
+    uint32_t *periodic_list = (uint32_t *)kamalloc(1024 * sizeof(uint32_t), 4096);
+    op_base->periodiclistbase = periodic_list;
 
-    struct ehci_qh* qh = kamalloc(sizeof(struct ehci_qh), 128);
-    qh->qhlp = (uint32_t) qh | 0b01;
-    qh->end_char = 1 << 15;
-    qh->end_cap = 0;
-    qh->current_qtd = 0;
-    qh->next_qtd = 1;
-    qh->alternate_nextqtd = 0;
-    qh->token = 0;
-    for (uint32_t i = 0; i < 5; ++i)
-	{
-		qh->bufptr[i] = 0;
-	}
-    op_base->asynclistaddr = (uint32_t)qh;
+    struct ehci_qh* async_qh = kamalloc(sizeof(struct ehci_qh), 128);
+    async_qh->qhlp = (uint32_t)async_qh | 0b01;
+    async_qh->end_char = 1 << 15;
+    async_qh->end_cap = 0;
+    async_qh->current_qtd = 0;
+    async_qh->next_qtd = 1;
+    async_qh->alternate_nextqtd = 0;
+    async_qh->token = 0;
+    for (uint32_t i = 0; i < 5; ++i) {
+        async_qh->bufptr[i] = 0;
+    }
+    op_base->asynclistaddr = (uint32_t)async_qh;
 
-    qh = kamalloc(sizeof(struct ehci_qh), 128);
-    qh->qhlp = 0;
-	qh->end_char = 0;
-	qh->end_cap = 0;
-	qh->current_qtd = 0;
-	qh->next_qtd = 1;
-	qh->alternate_nextqtd = 0;
-	qh->token = 0;
-    for (uint32_t i = 0; i < 5; ++i)
-		qh->bufptr[i] = 0;
-    for (uint32_t i = 0; i < 1024; ++i)
-		op_base->periodiclistbase[i] = 0b01 | (uint32_t)qh;
+    struct ehci_qh* periodic_qh = kamalloc(sizeof(struct ehci_qh), 128);
+    periodic_qh->qhlp = 0;
+    periodic_qh->end_char = 0;
+    periodic_qh->end_cap = 0;
+    periodic_qh->current_qtd = 0;
+    periodic_qh->next_qtd = 1;
+    periodic_qh->alternate_nextqtd = 0;
+    periodic_qh->token = 0;
+    for (uint32_t i = 0; i < 5; ++i) {
+        periodic_qh->bufptr[i] = 0;
+    }
+    for (uint32_t i = 0; i < 1024; ++i) {
+        periodic_list[i] = 0b01 | (uint32_t)periodic_qh;
+    }
 
     print("[EHCI] Turning off BIOS legacy mode... ");
     uint16_t eecp = ((cap_base->hccparams & 0xFF00) >> 8);
@@ -94,56 +87,58 @@ int bind_device_pci(uint8_t bus, uint8_t slot, uint8_t func) {
         if (legsup & USBLEGSUP_HC_BIOS) {
             print("USB controller indeed owned by BIOS. Stealing... ");
             pci_write_dword(bus, slot, func, eecp + USBLEGSUP, legsup | USBLEGSUP_HC_OS);
-            while(1)
-			{
-				legsup = pci_read_dword(bus, slot, func, eecp + USBLEGSUP);
-				if (~legsup & USBLEGSUP_HC_BIOS && legsup & USBLEGSUP_HC_OS)
-				{
-					break;
-				}
-			}
+            while(1) {
+                legsup = pci_read_dword(bus, slot, func, eecp + USBLEGSUP);
+                if (~legsup & USBLEGSUP_HC_BIOS && legsup & USBLEGSUP_HC_OS) {
+                    break;
+                }
+            }
         }
     }
 
     print("done.\n");
     op_base->usbintr = 0;
     op_base->frindex = 0;
-    // periodic and async base already set!
     op_base->ctrldssegment = 0;
-    op_base->usbsts = 0;
-    op_base->usbcmd = (8 << 16 | USBCMD_ASE | USBCMD_PSE | USBCMD_RUN);
+    op_base->usbsts = 0x3F;
+    op_base->usbcmd = (8 << 16) | USBCMD_ASE | USBCMD_PSE | USBCMD_RUN;
     LOG("Waiting for the controller to start...");
     while ((op_base->usbsts & (1 << USBSTS_HALTED)));
     op_base->configflag = 1;
 
     uint8_t num_ports = hcsparams & 0xF;
     LOG("Ports available: ");
-    print_u8(num_ports);
+    print_uint32(num_ports, 10, "0123456789");
     putchar('\n');
+
+    if (hcsparams & (1 << 4)) {
+        for (int i = 0; i < num_ports; i++) {
+            op_base->ports[i] |= (1 << 12);
+        }
+        wait(20);
+    }
 
     for (int i = 0; i < num_ports; i++) {
         volatile uint32_t *port = (op_base->ports) + i;
         if (*port & (1 << PORT_CONNECTED)) {
-            print("Device connected on port "); print_u8(i); print("... ");
-            
-            *port |= (1<<12)|(1<<20);
-            wait(100);
+            print("Device connected on port "); print_uint32(i, 10, "0123456789"); print("... ");
+
+            *port = (*port & ~0x2A) | 0x1540;
+            wait(10);
             *port |= (1 << PORT_RESET);
             wait(50);
             *port &= ~(1 << PORT_RESET);
 
             uint32_t status = 0;
-            for (uint32_t j = 0; j < 10; ++j)
-            {
+            for (uint32_t j = 0; j < 10; ++j) {
                 wait(10);
                 status = *port;
 
                 if (!(status & (1 << PORT_CONNECTED)))
                     break;
 
-                if (status & ((1 << PORT_ENABLED_CHANGE) | (1 << PORT_CONNECTED_CHANGE)))
-                {
-                    *port |= (1 << PORT_ENABLED_CHANGE) | (1 << PORT_CONNECTED_CHANGE); // clear change flags
+                if (status & ((1 << PORT_ENABLED_CHANGE) | (1 << PORT_CONNECTED_CHANGE))) {
+                    *port |= (1 << PORT_ENABLED_CHANGE) | (1 << PORT_CONNECTED_CHANGE);
                     continue;
                 }
                 if (status & (1 << PORT_ENABLED))
@@ -156,15 +151,8 @@ int bind_device_pci(uint8_t bus, uint8_t slot, uint8_t func) {
                 print("\xFCThe device is not enabled!\xF7\n");
                 continue;
             }
-            
-            /*char* ctrl_qh = build_queue_head();
-            configure_queue_head_basic(ctrl_qh, 0, 0, 1, 0);
-            prelim_get_device_desc(ctrl_qh, (uint32_t)op_base, i);
-            kfree(ctrl_qh);*/
-
         }
     }
-
 
     return 0;
 }

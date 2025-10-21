@@ -15,7 +15,6 @@
 #include "progman/elf.h"
 
 #include "drivers/USB_EHCI/driver_elf.h"
-#include "drivers/VGA/driver_elf.h"
 #include "drivers/BootloaderFB/driver_elf.h"
 #include "drivers/drivermodel.h"
 
@@ -24,8 +23,8 @@
 extern char _kernel_start;
 extern char _kernel_end;
 
-const char* videodrv_base[] = {BootloaderFB_driver_so, VGA_driver_so};
-const uint8_t videodrv_base_c = 2;
+const char* videodrv_base[] = {BootloaderFB_driver_so};
+const uint8_t videodrv_base_c = 1;
 
 void kernel_main(uint32_t magic, struct multiboot_info* mbd_e) {
     boot_data_t* mbd = init_boot(magic, mbd_e);

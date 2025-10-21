@@ -1,6 +1,6 @@
 # drivers/Makefile
 # List drivers here (space-separated)
-DRIVERS ?= USB_EHCI VGA BootloaderFB
+DRIVERS ?= USB_EHCI BootloaderFB
 
 # Tools & flags (tweak to match your build)
 CC       := gcc
@@ -8,7 +8,7 @@ LD       := ld
 XXD      := xxd
 
 CFLAGS   := -m32 -ffreestanding -Wall -Wextra -nostdlib -fno-builtin \
-            -fno-stack-protector -funsigned-char -fPIC -c
+            -fno-stack-protector -funsigned-char -fPIC -c -O0
 LDFLAGS  := -m elf_i386 -shared -nostdlib --build-id=none --gc-sections -s -T driver.ld
 
 # --- internal rule generator ---

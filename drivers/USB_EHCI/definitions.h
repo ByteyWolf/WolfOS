@@ -132,4 +132,4 @@ extern void wait(uint32_t ms);
 int get_bit(const unsigned char *data, uint32_t bit_offset);
 void set_bit(unsigned char *data, uint32_t bit_offset, int value);
 
-void print_u8(uint8_t n);
+extern void print_uint32(uint32_t val, unsigned base, const char *digits);
