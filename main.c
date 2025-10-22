@@ -16,6 +16,7 @@
 
 #include "drivers/USB_EHCI/driver_elf.h"
 #include "drivers/BootloaderFB/driver_elf.h"
+#include "drivers/IDE/driver_elf.h"
 #include "drivers/drivermodel.h"
 
 #include <stdint.h>
@@ -50,6 +51,8 @@ void kernel_main(uint32_t magic, struct multiboot_info* mbd_e) {
     init_progman(mbd);
     
     register_driver(USB_EHCI_driver_so, USB_EHCI_driver_so_len);
+    register_driver(IDE_driver_so, IDE_driver_so_len);
+
     for (uint8_t drvidx = 0; drvidx < videodrv_base_c; drvidx++) {
         char* videodrv_so = videodrv_base[drvidx];
         struct device_driver* videodrv = register_driver(videodrv_so, 0xFFFFFFFF);

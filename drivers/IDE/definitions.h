@@ -73,26 +73,39 @@
 #define ATA_REG_ALTSTATUS  0x0C
 #define ATA_REG_DEVADDRESS 0x0D
 
-#define      ATA_PRIMARY      0x00
-#define      ATA_SECONDARY    0x01
-
 #define      ATA_READ      0x00
 #define      ATA_WRITE     0x01
 
-struct ide_drive {
-    
+struct ide_channel {
+   unsigned short base;  // I/O Base.
+   unsigned short ctrl;  // Control Base
+   unsigned short bmide; // Bus Master IDE
+   unsigned char  nIEN;  // nIEN (No Interrupt);
 };
 
+struct ide_device {
+   unsigned char  reserved;    // 0 (Empty) or 1 (This Drive really exists).
+   unsigned char  channel;     // 0 (Primary Channel) or 1 (Secondary Channel).
+   unsigned char  drive;       // 0 (Master Drive) or 1 (Slave Drive).
+   unsigned short type;        // 0: ATA, 1:ATAPI.
+   unsigned short signature;   // Drive Signature
+   unsigned short capabilities;// Features.
+   unsigned int   command_sets; // Command Sets Supported.
+   unsigned int   size_sectors;        // Size in Sectors.
+   unsigned char  model[41];   // Model in string.
+};
 
 extern void print(char* str);
 extern void putchar(char chr);
-extern uint32_t pci_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
-extern uint16_t pci_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
-extern uint8_t pci_read_byte(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
 extern void print_ptr(const void *p);
 extern void* kmalloc(uint32_t nbytes);
 extern void* kamalloc(uint32_t nbytes, uint32_t align);
 extern uint8_t kfree(void* ptr);
-extern void pci_write_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint16_t value);
-extern void pci_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t value);
 extern void wait(uint32_t ms);
+extern void print_uint32(uint32_t val, unsigned base, const char *digits);
+extern uint8_t inb(uint16_t port);
+extern void outb(uint16_t port, uint8_t data);
+
+void ide_write(struct ide_channel* channel, uint8_t reg, uint8_t data);
+uint8_t ide_read(struct ide_channel* channel, uint8_t reg);
+void ide_read_buffer(struct ide_channel* channel, uint8_t reg, uint32_t buffer, uint32_t quads);

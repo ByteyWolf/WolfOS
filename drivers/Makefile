@@ -1,6 +1,6 @@
 # drivers/Makefile
 # List drivers here (space-separated)
-DRIVERS ?= USB_EHCI BootloaderFB
+DRIVERS ?= USB_EHCI BootloaderFB IDE
 
 # Tools & flags (tweak to match your build)
 CC       := gcc
